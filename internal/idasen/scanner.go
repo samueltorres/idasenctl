@@ -1,7 +1,7 @@
 package idasen
 
 import (
-	"fmt"
+	"context"
 	"strings"
 
 	"tinygo.org/x/bluetooth"
@@ -9,6 +9,11 @@ import (
 
 type Scanner struct {
 	adapter *bluetooth.Adapter
+}
+
+type DeviceInfo struct {
+	Name    string
+	Address string
 }
 
 func NewScanner() (*Scanner, error) {
@@ -22,12 +27,20 @@ func NewScanner() (*Scanner, error) {
 	}, nil
 }
 
-func (s *Scanner) Scan() {
-	fmt.Println("Scanning")
+func (s *Scanner) Scan(ctx context.Context, dic chan<- DeviceInfo) {
+	desksSeen := make(map[string]struct{})
 	s.adapter.Scan(func(a *bluetooth.Adapter, device bluetooth.ScanResult) {
 		if strings.HasPrefix(device.LocalName(), "Desk") {
-			fmt.Println("Found Desk", device.LocalName(), device.Address.String())
-			a.StopScan()
+			if _, ok := desksSeen[device.LocalName()]; !ok {
+				dic <- DeviceInfo{Name: device.LocalName(), Address: device.Address.String()}
+			}
+			desksSeen[device.LocalName()] = struct{}{}
+
+			select {
+			case <-ctx.Done():
+				a.StopScan()
+			default:
+			}
 		}
 	})
 }

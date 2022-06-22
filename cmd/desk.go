@@ -1,16 +1,15 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"log"
 
 	"github.com/samueltorres/idasenctl/internal/config"
 	"github.com/samueltorres/idasenctl/internal/idasen"
+	"github.com/samueltorres/idasenctl/internal/ui/deskselect"
 
 	"github.com/spf13/cobra"
-)
-
-var (
-	deskAddressFlag string
 )
 
 var deskCmd = &cobra.Command{
@@ -19,36 +18,45 @@ var deskCmd = &cobra.Command{
 	Long:  ``,
 }
 
-var deskScanCmd = &cobra.Command{
-	Use:   "scan",
-	Short: "scans idasen desks",
+var deskAddCmd = &cobra.Command{
+	Use:   "add",
+	Short: "add idasen desks",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		controller, err := idasen.NewScanner()
 		if err != nil {
 			log.Fatal(err)
 		}
-		controller.Scan()
-	},
-}
+		deskScans := make(chan idasen.DeviceInfo)
+		go controller.Scan(ctx, deskScans)
 
-var deskAddCmd = &cobra.Command{
-	Use:   "add [name]",
-	Short: "adds an idasen desk",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		deskName := args[0]
-		err := configManager.SetDesk(config.Desk{
-			Name:    args[0],
-			Address: deskAddressFlag,
+		deskSelectProgram := deskselect.NewProgram(deskScans)
+		err = deskSelectProgram.Run(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		selectedDesk := deskSelectProgram.GetSelectedDesk()
+		if selectedDesk == nil {
+			return
+		}
+
+		err = configManager.SetDesk(config.Desk{
+			Name:    selectedDesk.Name,
+			Address: selectedDesk.Address,
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = configManager.SetDefaultDesk(deskName)
+		err = configManager.SetDefaultDesk(selectedDesk.Name)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		fmt.Println("Selected desk:", selectedDesk.Name)
 	},
 }
 
@@ -66,12 +74,8 @@ var deskDefaultCmd = &cobra.Command{
 }
 
 func init() {
-	deskAddCmd.Flags().StringVarP(&deskAddressFlag, "address", "a", "", "The address uuid of the desk you are adding")
-	deskAddCmd.MarkFlagRequired("address")
-
 	deskCmd.AddCommand(deskAddCmd)
 	deskCmd.AddCommand(deskDefaultCmd)
-	deskCmd.AddCommand(deskScanCmd)
 
 	rootCmd.AddCommand(deskCmd)
 }

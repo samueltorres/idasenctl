@@ -1,9 +1,9 @@
 package idasen
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/samueltorres/idasenctl/internal/ble"
@@ -39,7 +39,7 @@ func NewController(deskAddress string) (*Controller, error) {
 	}, nil
 }
 
-func (c *Controller) MoveTo(desiredHeight float32) error {
+func (c *Controller) MoveTo(ctx context.Context, desiredHeight float32, updates chan<- float32) error {
 	if desiredHeight > float32(IDASEN_MAX_HEIGHT) {
 		return ErrHeightBiggerThanMax
 	}
@@ -48,15 +48,23 @@ func (c *Controller) MoveTo(desiredHeight float32) error {
 		return ErrHeightBiggerThanMax
 	}
 
-	fmt.Println("Adjusting")
 	for {
-		currentHeight, err := c.GetHeight()
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
+		currentHeight, err := c.GetCurrentHeight()
 		if err != nil {
 			return err
 		}
 
+		if updates != nil {
+			updates <- currentHeight
+		}
+
 		if math.Abs(float64(desiredHeight-currentHeight)) < 0.005 {
-			fmt.Println("Stopped")
 			err := c.stop()
 			if err != nil {
 				return err
@@ -79,7 +87,7 @@ func (c *Controller) MoveTo(desiredHeight float32) error {
 	return nil
 }
 
-func (c *Controller) GetHeight() (float32, error) {
+func (c *Controller) GetCurrentHeight() (float32, error) {
 	b, err := c.adaptor.ReadCharacteristic(IDASEN_UUID_HEIGHT)
 	if err != nil {
 		return 0, err

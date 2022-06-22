@@ -40,7 +40,7 @@ var presetAddCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 
-			height, err = controller.GetHeight()
+			height, err = controller.GetCurrentHeight()
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -59,6 +59,10 @@ func (cm *ConfigManager) GetDesk(name string) (Desk, error) {
 }
 
 func (cm *ConfigManager) SetDesk(desk Desk) error {
+	if _, exist := cm.config.Desks[desk.Name]; exist {
+		return nil
+	}
+
 	cm.config.Desks[desk.Name] = desk
 	return cm.storeConfig()
 }
