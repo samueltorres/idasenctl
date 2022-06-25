@@ -18,13 +18,13 @@ type Adapter struct {
 func NewAdapter(address string) (*Adapter, error) {
 	adapter := bluetooth.DefaultAdapter
 	adapter.Enable()
-	deviceUUID, err := bluetooth.ParseUUID(address)
+	addr, err := bluetoothAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
 	device, err := adapter.Connect(
-		bluetooth.Address{UUID: deviceUUID},
+		addr,
 		bluetooth.ConnectionParams{
 			ConnectionTimeout: bluetooth.NewDuration(30 * time.Second),
 		})
