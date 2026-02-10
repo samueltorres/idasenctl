@@ -1,33 +1,82 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
+version: 2
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
     # you may remove this if you don't need go generate
     - go generate ./...
+
 builds:
+  # Linux builds (will run on Ubuntu runner)
   - env:
       - CGO_ENABLED=1
     goos:
       - linux
+    goarch:
+      - amd64
+    id: linux
+  # macOS builds (will run on macOS runner)  
+  - env:
+      - CGO_ENABLED=1
+    goos:
       - darwin
     goarch:
       - amd64
-      - arm
       - arm64
+    id: darwin
+
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      amd64: x86_64
+  - formats: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- version .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - src: './LICENSE'
+        dst: .
+      - src: './README.md'
+        dst: .
+
 checksum:
   name_template: 'checksums.txt'
+
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
+
+# Homebrew configuration
+brews:
+  - name: idasenctl
+    repository:
+      owner: samueltorres
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://github.com/samueltorres/idasenctl"
+    description: "Command line tool for IKEA Idasen desk"
+    license: MIT
+    test: |
+      system "#{bin}/idasenctl --version"
+
+# Debian/RPM packages
+nfpms:
+  - package_name: idasenctl
+    file_name_template: "{{ .ConventionalFileName }}"
+    homepage: "https://github.com/samueltorres/idasenctl"
+    description: "Control IKEA Idasen desk from command line"
+    maintainer: "Samuel Torres <samueltorres@users.noreply.github.com>"
+    license: MIT
+    formats:
+      - deb
+      - rpm

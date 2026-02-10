@@ -1,0 +1,13 @@
+[Unit]
+Description=idasenctl desk scheduler
+After=network.target
+
+[Service]
+Type=simple
+# Update the path to the idasenctl binary if needed
+ExecStart=%h/go/bin/idasenctl daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
