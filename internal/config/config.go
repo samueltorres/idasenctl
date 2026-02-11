@@ -1,12 +1,12 @@
 package config
 
 import (
-	"io/ioutil"
+	"errors"
+	"io"
 	"os"
 	"strings"
 
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -16,6 +16,7 @@ var (
 type Config struct {
 	Desks       map[string]Desk `yaml:"desks"`
 	DefaultDesk string          `yaml:"defaultDesk"`
+	Schedules   []Schedule      `yaml:"schedules"`
 }
 
 type Desk struct {
@@ -27,6 +28,15 @@ type Desk struct {
 type Preset struct {
 	Name   string  `yaml:"name"`
 	Height float32 `yaml:"height"`
+}
+
+type Schedule struct {
+	Name       string `yaml:"name"`
+	Time       string `yaml:"time"`       // HH:MM format
+	DeskName   string `yaml:"deskName"`   // Which desk to move
+	PresetName string `yaml:"presetName"` // Which preset to move to
+	Enabled    bool   `yaml:"enabled"`    // Whether this schedule is active
+	Days       []int  `yaml:"days"`       // 0=Sunday, 1=Monday, ..., 6=Saturday
 }
 
 type ConfigManager struct {
@@ -76,6 +86,10 @@ func (cm *ConfigManager) GetDefaultDesk() string {
 	return cm.config.DefaultDesk
 }
 
+func (cm *ConfigManager) GetAllDesks() map[string]Desk {
+	return cm.config.Desks
+}
+
 func (cm *ConfigManager) SetDeskPreset(deskName string, presetName string, height float32) error {
 	d, ok := cm.config.Desks[deskName]
 	if !ok {
@@ -111,28 +125,57 @@ func (cm *ConfigManager) DeleteDeskPreset(deskName string, presetName string) er
 func (cm *ConfigManager) storeConfig() error {
 	f, err := os.OpenFile(cm.configFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return errors.Wrap(err, "could not open config file")
+		return errors.Join(err, errors.New("could not open config file"))
 	}
 	defer f.Close()
 
 	encoder := yaml.NewEncoder(f)
 	err = encoder.Encode(cm.config)
 	if err != nil {
-		return errors.Wrap(err, "could not save config file")
+		return errors.Join(err, errors.New("could not save config file"))
 	}
 
 	return nil
 }
 
+func (cm *ConfigManager) GetSchedules() []Schedule {
+	return cm.config.Schedules
+}
+
+func (cm *ConfigManager) AddSchedule(schedule Schedule) error {
+	cm.config.Schedules = append(cm.config.Schedules, schedule)
+	return cm.storeConfig()
+}
+
+func (cm *ConfigManager) RemoveSchedule(name string) error {
+	for i, schedule := range cm.config.Schedules {
+		if schedule.Name == name {
+			cm.config.Schedules = append(cm.config.Schedules[:i], cm.config.Schedules[i+1:]...)
+			return cm.storeConfig()
+		}
+	}
+	return errors.New("schedule not found")
+}
+
+func (cm *ConfigManager) UpdateSchedule(name string, updatedSchedule Schedule) error {
+	for i, schedule := range cm.config.Schedules {
+		if schedule.Name == name {
+			cm.config.Schedules[i] = updatedSchedule
+			return cm.storeConfig()
+		}
+	}
+	return errors.New("schedule not found")
+}
+
 func readConfigFromFile(configFile string) (Config, error) {
 	f, err := os.OpenFile(configFile, os.O_CREATE, 0644)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "could not open config file")
+		return Config{}, errors.Join(err, errors.New("could not open config file"))
 	}
 	defer f.Close()
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "could not read config file")
+		return Config{}, errors.Join(err, errors.New("could not read config file"))
 	}
 
 	if len(b) == 0 {
@@ -142,7 +185,7 @@ func readConfigFromFile(configFile string) (Config, error) {
 	var cfg Config
 	err = yaml.Unmarshal(b, &cfg)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "could not parse config file")
+		return Config{}, errors.Join(err, errors.New("could not parse config file"))
 	}
 
 	return cfg, nil

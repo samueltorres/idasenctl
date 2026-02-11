@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/samueltorres/idasenctl/internal/idasen"
+	"github.com/samueltorres/idasenctl/internal/ui/presetlist"
 	"github.com/spf13/cobra"
 )
 
@@ -70,12 +71,33 @@ var presetDeleteCmd = &cobra.Command{
 	},
 }
 
+var presetListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "list desk presets",
+	Run: func(cmd *cobra.Command, args []string) {
+		deskName := deskFlag
+		if deskName == "" {
+			deskName = configManager.GetDefaultDesk()
+		}
+
+		program := presetlist.NewProgram(configManager, deskName)
+		err := program.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
 func init() {
 	presetAddCmd.Flags().StringVarP(&deskFlag, "desk", "d", "", "The name of the desk")
 	presetAddCmd.Flags().Float32VarP(&deskPresetHeight, "height", "", 0, "The height of the desk on the preset")
 	presetAddCmd.Flags().BoolVarP(&deskPresetCurrent, "current", "c", false, "The height of the desk on the preset")
 
+	presetListCmd.Flags().StringVarP(&deskFlag, "desk", "d", "", "The name of the desk")
+	presetDeleteCmd.Flags().StringVarP(&deskFlag, "desk", "d", "", "The name of the desk")
+
 	presetCmd.AddCommand(presetAddCmd)
 	presetCmd.AddCommand(presetDeleteCmd)
+	presetCmd.AddCommand(presetListCmd)
 	rootCmd.AddCommand(presetCmd)
 }

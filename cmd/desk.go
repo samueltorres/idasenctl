@@ -8,6 +8,7 @@ import (
 	"github.com/samueltorres/idasenctl/internal/config"
 	"github.com/samueltorres/idasenctl/internal/idasen"
 	"github.com/samueltorres/idasenctl/internal/ui/deskselect"
+	"github.com/samueltorres/idasenctl/internal/ui/desklist"
 
 	"github.com/spf13/cobra"
 )
@@ -20,7 +21,7 @@ var deskCmd = &cobra.Command{
 
 var deskAddCmd = &cobra.Command{
 	Use:   "add",
-	Short: "add idasen desks",
+	Short: "add",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -73,9 +74,23 @@ var deskDefaultCmd = &cobra.Command{
 	},
 }
 
+var deskListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "list configured desks",
+	Long:  `List all configured desks with their addresses and preset counts.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		program := desklist.NewProgram(configManager)
+		err := program.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
 func init() {
 	deskCmd.AddCommand(deskAddCmd)
 	deskCmd.AddCommand(deskDefaultCmd)
+	deskCmd.AddCommand(deskListCmd)
 
 	rootCmd.AddCommand(deskCmd)
 }

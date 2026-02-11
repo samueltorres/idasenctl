@@ -34,7 +34,7 @@ func NewAdapter(address string) (*Adapter, error) {
 	}
 
 	bleAdapter := &Adapter{
-		device: device,
+		device: &device,
 	}
 
 	return bleAdapter, nil
