@@ -7,8 +7,8 @@ import (
 
 	"github.com/samueltorres/idasenctl/internal/config"
 	"github.com/samueltorres/idasenctl/internal/idasen"
-	"github.com/samueltorres/idasenctl/internal/ui/deskselect"
 	"github.com/samueltorres/idasenctl/internal/ui/desklist"
+	"github.com/samueltorres/idasenctl/internal/ui/deskselect"
 
 	"github.com/spf13/cobra"
 )

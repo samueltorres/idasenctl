@@ -158,4 +158,3 @@ func (d *Daemon) executeSchedule(schedule config.Schedule) {
 
 	log.Printf("Successfully moved desk %s to preset %s (height: %.2f)", schedule.DeskName, schedule.PresetName, preset.Height)
 }
-

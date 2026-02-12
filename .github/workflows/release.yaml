@@ -1,30 +1,23 @@
-name: goreleaser
+name: release
 
 on:
   push:
-    # run only against tags
     tags:
       - '*'
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
-  build-linux:
+  test:
     runs-on: ubuntu-latest
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      -
-        name: Fetch all tags
-        run: git fetch --force --tags
       -
         name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.24'
       -
@@ -38,84 +31,205 @@ jobs:
             libdbus-1-dev \
             libudev-dev
       -
-        name: Build Linux binaries
-        uses: goreleaser/goreleaser-action@v5
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: build --rm-dist --clean --id linux
+        name: Run tests
+        run: go test -v ./...
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CGO_ENABLED: 1
+
+  build-linux-amd64:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      -
+        name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc \
+            g++ \
+            libbluetooth-dev \
+            libdbus-1-dev \
+            libudev-dev
+      -
+        name: Build Linux amd64 binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          STAGE_DIR="dist/stage-linux-amd64"
+          mkdir -p "${STAGE_DIR}"
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -v -o "${STAGE_DIR}/idasenctl" .
+          cp LICENSE README.md "${STAGE_DIR}/"
+          tar -C "${STAGE_DIR}" -czf "dist/idasenctl_${VERSION}_linux_amd64.tar.gz" .
+          rm -rf "${STAGE_DIR}"
+          ls -la dist
       -
         name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-artifacts
-          path: dist/*
+          name: release-assets-linux-amd64
+          path: dist/*.tar.gz
+          if-no-files-found: error
 
-  build-macos:
+  build-darwin-amd64:
+    needs: test
     runs-on: macos-latest
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      -
-        name: Fetch all tags
-        run: git fetch --force --tags
       -
         name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.24'
       -
-        name: Build macOS binaries
-        uses: goreleaser/goreleaser-action@v5
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: build --rm-dist --clean --id darwin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Build Darwin amd64 binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          STAGE_DIR="dist/stage-darwin-amd64"
+          mkdir -p "${STAGE_DIR}"
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o "${STAGE_DIR}/idasenctl" .
+          cp LICENSE README.md "${STAGE_DIR}/"
+          tar -C "${STAGE_DIR}" -czf "dist/idasenctl_${VERSION}_darwin_amd64.tar.gz" .
+          rm -rf "${STAGE_DIR}"
+          ls -la dist
       -
-        name: Upload macOS artifacts
+        name: Upload Darwin amd64 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-artifacts
-          path: dist/*
+          name: release-assets-darwin-amd64
+          path: dist/*.tar.gz
+          if-no-files-found: error
 
-  release:
-    needs: [build-linux, build-macos]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+  build-darwin-arm64:
+    needs: test
+    runs-on: macos-latest
     steps:
       -
         name: Checkout
         uses: actions/checkout@v4
+      -
+        name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          fetch-depth: 0
+          go-version: '1.24'
       -
-        name: Fetch all tags
-        run: git fetch --force --tags
+        name: Build Darwin arm64 binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          STAGE_DIR="dist/stage-darwin-arm64"
+          mkdir -p "${STAGE_DIR}"
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o "${STAGE_DIR}/idasenctl" .
+          cp LICENSE README.md "${STAGE_DIR}/"
+          tar -C "${STAGE_DIR}" -czf "dist/idasenctl_${VERSION}_darwin_arm64.tar.gz" .
+          rm -rf "${STAGE_DIR}"
+          ls -la dist
       -
-        name: Download all artifacts
+        name: Upload Darwin arm64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-darwin-arm64
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [build-linux-amd64, build-darwin-amd64, build-darwin-arm64]
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+    steps:
+      -
+        name: Download all release artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist-all
+          pattern: release-assets-*
+          path: dist
+          merge-multiple: true
       -
-        name: Prepare artifacts
+        name: Generate checksums
         run: |
-          mkdir -p dist
-          find dist-all -name "*idasenctl*" -type f -exec cp {} dist/ \;
-          ls -la dist/
+          cd dist
+          sha256sum *.tar.gz > checksums.txt
+          ls -la
       -
-        name: Run GoReleaser for release
-        uses: goreleaser/goreleaser-action@v5
+        name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
         with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --rm-dist --clean --skip-build
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      -
+        name: Checkout Homebrew tap
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: samueltorres/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          path: homebrew-tap
+      -
+        name: Update Homebrew formula
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          LINUX_SHA="$(awk '/idasenctl_'"${VERSION}"'_linux_amd64.tar.gz$/ {print $1}' dist/checksums.txt)"
+          DARWIN_AMD64_SHA="$(awk '/idasenctl_'"${VERSION}"'_darwin_amd64.tar.gz$/ {print $1}' dist/checksums.txt)"
+          DARWIN_ARM64_SHA="$(awk '/idasenctl_'"${VERSION}"'_darwin_arm64.tar.gz$/ {print $1}' dist/checksums.txt)"
+
+          test -n "${LINUX_SHA}"
+          test -n "${DARWIN_AMD64_SHA}"
+          test -n "${DARWIN_ARM64_SHA}"
+
+          cat > homebrew-tap/Formula/idasenctl.rb <<EOF
+          class Idasenctl < Formula
+            desc "Command line tool for IKEA Idasen desk"
+            homepage "https://github.com/samueltorres/idasenctl"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${BASE_URL}/idasenctl_${VERSION}_darwin_arm64.tar.gz"
+                sha256 "${DARWIN_ARM64_SHA}"
+              else
+                url "${BASE_URL}/idasenctl_${VERSION}_darwin_amd64.tar.gz"
+                sha256 "${DARWIN_AMD64_SHA}"
+              end
+            end
+
+            on_linux do
+              url "${BASE_URL}/idasenctl_${VERSION}_linux_amd64.tar.gz"
+              sha256 "${LINUX_SHA}"
+            end
+
+            def install
+              bin.install "idasenctl"
+              prefix.install "README.md", "LICENSE"
+            end
+
+            test do
+              system "#{bin}/idasenctl", "--help"
+            end
+          end
+          EOF
+
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/idasenctl.rb
+          if git diff --cached --quiet; then
+            echo "No Homebrew formula changes to commit."
+            exit 0
+          fi
+          git commit -m "idasenctl ${GITHUB_REF_NAME}"
+          git push

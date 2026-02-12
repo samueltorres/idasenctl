@@ -11,32 +11,16 @@ Download the latest release for your platform from [GitHub Releases](https://git
 ### Homebrew (macOS)
 
 ```bash
-brew tap samueltorres/tap
+brew tap samueltorres/homebrew-tap
 brew install idasenctl
 ```
 
-### Debian/Ubuntu
+### Linux (amd64)
 
 ```bash
-# For amd64 (Intel/AMD)
-wget https://github.com/samueltorres/idasenctl/releases/latest/download/idasenctl_latest_amd64.deb
-sudo dpkg -i idasenctl_latest_amd64.deb
-
-# For arm64 (Apple Silicon)
-wget https://github.com/samueltorres/idasenctl/releases/latest/download/idasenctl_latest_arm64.deb
-sudo dpkg -i idasenctl_latest_arm64.deb
-```
-
-### RHEL/Fedora/CentOS
-
-```bash
-# For amd64 (Intel/AMD)
-wget https://github.com/samueltorres/idasenctl/releases/latest/download/idasenctl_latest.x86_64.rpm
-sudo rpm -i idasenctl_latest.x86_64.rpm
-
-# For arm64
-wget https://github.com/samueltorres/idasenctl/releases/latest/download/idasenctl_latest.aarch64.rpm
-sudo rpm -i idasenctl_latest.aarch64.rpm
+curl -LO https://github.com/samueltorres/idasenctl/releases/latest/download/idasenctl_<version>_linux_amd64.tar.gz
+tar -xzf idasenctl_<version>_linux_amd64.tar.gz
+sudo install -m 0755 idasenctl /usr/local/bin/idasenctl
 ```
 
 ### From Source

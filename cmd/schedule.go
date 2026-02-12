@@ -32,17 +32,17 @@ var scheduleAddCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		scheduleName := args[0]
-		
+
 		deskName := scheduleDeskName
 		if deskName == "" {
 			deskName = configManager.GetDefaultDesk()
 		}
-		
+
 		days, err := parseDays(scheduleDays)
 		if err != nil {
 			log.Fatal(err)
 		}
-		
+
 		schedule := config.Schedule{
 			Name:       scheduleName,
 			Time:       scheduleTime,
@@ -51,12 +51,12 @@ var scheduleAddCmd = &cobra.Command{
 			Enabled:    scheduleEnabled,
 			Days:       days,
 		}
-		
+
 		err = configManager.AddSchedule(schedule)
 		if err != nil {
 			log.Fatal(err)
 		}
-		
+
 		fmt.Printf("Schedule '%s' added successfully\n", scheduleName)
 	},
 }
@@ -81,12 +81,12 @@ var scheduleRemoveCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		scheduleName := args[0]
-		
+
 		err := configManager.RemoveSchedule(scheduleName)
 		if err != nil {
 			log.Fatal(err)
 		}
-		
+
 		fmt.Printf("Schedule '%s' removed successfully\n", scheduleName)
 	},
 }
@@ -108,38 +108,38 @@ func parseDays(dayStrings []string) ([]int, error) {
 		"fri":       5,
 		"sat":       6,
 	}
-	
+
 	var days []int
 	for _, dayStr := range dayStrings {
 		dayStr = strings.ToLower(dayStr)
-		
+
 		if dayNum, err := strconv.Atoi(dayStr); err == nil {
 			if dayNum >= 0 && dayNum <= 6 {
 				days = append(days, dayNum)
 				continue
 			}
 		}
-		
+
 		if dayNum, ok := dayMap[dayStr]; ok {
 			days = append(days, dayNum)
 		} else {
 			return nil, fmt.Errorf("invalid day: %s", dayStr)
 		}
 	}
-	
+
 	return days, nil
 }
 
 func formatDays(days []int) string {
 	dayNames := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 	var dayStrings []string
-	
+
 	for _, day := range days {
 		if day >= 0 && day <= 6 {
 			dayStrings = append(dayStrings, dayNames[day])
 		}
 	}
-	
+
 	return strings.Join(dayStrings, ",")
 }
 
@@ -149,14 +149,14 @@ func init() {
 	scheduleAddCmd.Flags().StringVarP(&schedulePreset, "preset", "p", "", "Preset name (required)")
 	scheduleAddCmd.Flags().BoolVarP(&scheduleEnabled, "enabled", "e", true, "Enable the schedule")
 	scheduleAddCmd.Flags().StringSliceVar(&scheduleDays, "days", []string{}, "Days of the week (e.g., monday,tuesday or 1,2 or mon,tue)")
-	
+
 	scheduleAddCmd.MarkFlagRequired("time")
 	scheduleAddCmd.MarkFlagRequired("preset")
 	scheduleAddCmd.MarkFlagRequired("days")
-	
+
 	scheduleCmd.AddCommand(scheduleAddCmd)
 	scheduleCmd.AddCommand(scheduleListCmd)
 	scheduleCmd.AddCommand(scheduleRemoveCmd)
-	
+
 	rootCmd.AddCommand(scheduleCmd)
 }

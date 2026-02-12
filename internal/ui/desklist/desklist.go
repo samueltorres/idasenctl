@@ -13,10 +13,10 @@ import (
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type deskItem struct {
-	name         string
-	address      string
-	presetCount  int
-	isDefault    bool
+	name        string
+	address     string
+	presetCount int
+	isDefault   bool
 }
 
 func (i deskItem) Title() string {

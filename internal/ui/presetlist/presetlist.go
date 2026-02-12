@@ -64,10 +64,10 @@ type PresetListProgram struct {
 
 func NewProgram(configManager *config.ConfigManager, deskName string) *PresetListProgram {
 	desk, err := configManager.GetDesk(deskName)
-	
+
 	var items []list.Item
 	var title string
-	
+
 	if err != nil {
 		items = append(items, presetItem{
 			name:   "Error loading desk",
@@ -76,14 +76,14 @@ func NewProgram(configManager *config.ConfigManager, deskName string) *PresetLis
 		title = "Error"
 	} else {
 		title = fmt.Sprintf("Presets for %s", deskName)
-		
+
 		for _, preset := range desk.Presets {
 			items = append(items, presetItem{
 				name:   preset.Name,
 				height: preset.Height,
 			})
 		}
-		
+
 		if len(items) == 0 {
 			items = append(items, presetItem{
 				name:   "No presets configured",

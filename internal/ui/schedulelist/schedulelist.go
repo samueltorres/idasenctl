@@ -32,7 +32,7 @@ func (i scheduleItem) Title() string {
 
 func (i scheduleItem) Description() string {
 	daysStr := formatDays(i.days)
-	return fmt.Sprintf("Time: %s | Desk: %s | Preset: %s | Days: %s", 
+	return fmt.Sprintf("Time: %s | Desk: %s | Preset: %s | Days: %s",
 		i.time, i.deskName, i.presetName, daysStr)
 }
 
@@ -43,13 +43,13 @@ func (i scheduleItem) FilterValue() string {
 func formatDays(days []int) string {
 	dayNames := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 	var dayStrings []string
-	
+
 	for _, day := range days {
 		if day >= 0 && day <= 6 {
 			dayStrings = append(dayStrings, dayNames[day])
 		}
 	}
-	
+
 	return strings.Join(dayStrings, ",")
 }
 
